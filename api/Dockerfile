@@ -1,36 +1,34 @@
-# Use a Python image with uv pre-installed
-FROM ghcr.io/astral-sh/uv:python3.10-trixie
+# Use an official Python runtime as a parent image
+FROM python:3.10-slim-bookworm
 
-# Install the project into `/app`
+# Set working directory
 WORKDIR /app
 
-# Enable bytecode compilation
-ENV UV_COMPILE_BYTECODE=1
-
-# Copy from the cache instead of linking since it's a mounted volume
-ENV UV_LINK_MODE=copy
-
-# Ensure installed tools can be executed out of the box
-ENV UV_TOOL_BIN_DIR=/usr/local/bin
+# Install system dependencies if needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files first (for better layer caching)
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 
-# Install the project's dependencies
-# Note: Using --no-install-project to install only dependencies first
-RUN uv sync --locked --no-install-project --no-dev
+# Upgrade pip and install build tools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install the project's dependencies only (not the project itself yet)
+RUN pip install --no-cache-dir .
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the project source code
 COPY . /app
 
-# Install the project itself
-RUN uv sync --locked --no-dev
+# Install the project itself in production mode
+RUN pip install --no-cache-dir --no-deps .
 
-# Place executables in the environment at the front of the path
-ENV PATH="/app/.venv/bin:$PATH"
-
-# Reset the entrypoint, don't invoke `uv`
-ENTRYPOINT []
+# Expose port (optional, for documentation)
+EXPOSE 8000
 
 # Run the FastAPI application
 # Uses `--host 0.0.0.0` to allow access from outside the container

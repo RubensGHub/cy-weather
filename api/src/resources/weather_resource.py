@@ -1,160 +1,82 @@
-from datetime import datetime
-from unittest.mock import patch
-
 import httpx
-from fastapi.testclient import TestClient
+from fastapi import APIRouter, HTTPException, Query
+from prometheus_client import Counter
 
-from main import app
-from src.models.Weather import (
-    CurrentWeatherData,
-    DailyForecastData,
-    ForecastResponse,
-    WeatherResponse,
+from src.models.Weather import ForecastResponse, WeatherResponse
+from src.services.weather_service import weather_service
+
+pau_search_counter = Counter(
+    "pau_weather_searches_total", "Total number of weather searches for Pau"
 )
 
-client = TestClient(app)
+city_search_counter = Counter(
+    "city_weather_searches_total", "Total number of weather searches by city", ["city"]
+)
+
+router = APIRouter(prefix="/api/weather", tags=["Weather"])
 
 
-class TestCurrentWeatherEndpoint:
-    """Tests pour l'endpoint /api/weather/current"""
+@router.get("/current", response_model=WeatherResponse)
+async def get_current_weather(
+    city: str = Query(..., description="Nom de la ville"),
+    country_code: str | None = Query(None, description="Code pays (ex: FR, US)"),
+):
+    """Récupère la météo actuelle pour une ville donnée"""
 
-    @patch("src.resources.weather_resource.weather_service.get_current_weather")
-    def test_get_current_weather_success(self, mock_get_weather):
-        """Test récupération météo actuelle avec succès"""
-        mock_get_weather.return_value = WeatherResponse(
-            city="Paris",
-            country="FR",
-            timestamp=datetime.now(),
-            weather=CurrentWeatherData(
-                temperature=15.5,
-                feels_like=14.2,
-                humidity=75,
-                pressure=1013.2,
-                wind_speed=12.5,
-                description="Partiellement nuageux",
-                icon="02d",
-            ),
-        )
+    if city.lower() == "pau":
+        pau_search_counter.inc()
 
-        response = client.get("/api/weather/current?city=Paris")
+    city_search_counter.labels(city=city.lower()).inc()
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["city"] == "Paris"
-        assert data["country"] == "FR"
-        assert data["weather"]["temperature"] == 15.5
-
-
-class TestForecastEndpoint:
-    """Tests pour l'endpoint /api/weather/forecast"""
-
-    @patch("src.resources.weather_resource.weather_service.get_forecast")
-    def test_get_forecast_success(self, mock_get_forecast):
-        """Test récupération prévisions avec succès"""
-        mock_get_forecast.return_value = ForecastResponse(
-            city="Lyon",
-            country="FR",
-            forecast=[
-                DailyForecastData(
-                    date="2026-01-13",
-                    temp_max=18.0,
-                    temp_min=8.0,
-                    temp_day=15.0,
-                    temp_night=10.0,
-                    feels_like_day=14.0,
-                    feels_like_night=9.0,
-                    humidity=65.0,
-                    precipitation_probability=20,
-                    wind_speed=10.5,
-                    description="Ciel dégagé",
-                    icon="01d",
-                )
-            ],
-        )
-
-        response = client.get("/api/weather/forecast?city=Lyon")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["city"] == "Lyon"
-        assert len(data["forecast"]) == 1
-        assert data["forecast"][0]["temp_max"] == 18.0
-
-    @patch("src.resources.weather_resource.weather_service.get_forecast")
-    def test_get_forecast_multiple_days(self, mock_get_forecast):
-        """Test prévisions sur plusieurs jours"""
-        mock_get_forecast.return_value = ForecastResponse(
-            city="Marseille",
-            country="FR",
-            forecast=[
-                DailyForecastData(
-                    date=f"2026-01-{13 + i}",
-                    temp_max=18.0 + i,
-                    temp_min=8.0 + i,
-                    temp_day=15.0,
-                    temp_night=10.0,
-                    feels_like_day=14.0,
-                    feels_like_night=9.0,
-                    humidity=65.0,
-                    precipitation_probability=20,
-                    wind_speed=10.5,
-                    description="Ciel dégagé",
-                    icon="01d",
-                )
-                for i in range(7)
-            ],
-        )
-
-        response = client.get("/api/weather/forecast?city=Marseille")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["forecast"]) == 7
+    try:
+        weather_data = await weather_service.get_current_weather(city, country_code)
+        return weather_data
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Ville '{city}' non trouvée. Vérifiez l'orthographe ou ajoutez le code pays.",
+            ) from e
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Erreur lors de la récupération des données météo: {str(e)}",
+        ) from e
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=500, detail=f"Erreur de connexion à l'API météo: {str(e)}"
+        ) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur interne du serveur: {str(e)}") from e
 
 
-class TestPrometheusCounters:
-    """Tests pour les compteurs Prometheus"""
+@router.get("/forecast", response_model=ForecastResponse)
+async def get_forecast(
+    city: str = Query(..., description="Nom de la ville"),
+    country_code: str | None = Query(None, description="Code pays (ex: FR, US)"),
+):
+    """Récupère les prévisions météo pour une ville donnée"""
 
-    @patch("src.resources.weather_resource.weather_service.get_current_weather")
-    def test_pau_counter_increments(self, mock_get_weather):
-        """Test que le compteur Pau s'incrémente"""
-        from src.resources.weather_resource import pau_search_counter
+    if city.lower() == "pau":
+        pau_search_counter.inc()
 
-        mock_get_weather.return_value = WeatherResponse(
-            city="Pau",
-            country="FR",
-            timestamp=datetime.now(),
-            weather=CurrentWeatherData(
-                temperature=15.5,
-                feels_like=14.2,
-                humidity=75,
-                pressure=1013.2,
-                wind_speed=12.5,
-                description="Ciel dégagé",
-                icon="01d",
-            ),
-        )
+    city_search_counter.labels(city=city.lower()).inc()
 
-        initial_count = pau_search_counter._value._value
-        client.get("/api/weather/current?city=Pau")
-        assert pau_search_counter._value._value == initial_count + 1
-
-
-class TestErrorHandling:
-    """Tests pour la gestion d'erreurs"""
-
-    @patch("src.resources.weather_resource.weather_service.get_current_weather")
-    def test_city_not_found_404(self, mock_get_weather):
-        """Test erreur 404 quand la ville n'existe pas"""
-
-        mock_response = httpx.Response(404, json={})
-        mock_get_weather.side_effect = httpx.HTTPStatusError(
-            "Not found",
-            request=httpx.Request("GET", "http://test"),
-            response=mock_response,
-        )
-
-        response = client.get("/api/weather/current?city=VilleInexistante")
-
-        assert response.status_code == 404
-        assert "non trouvée" in response.json()["detail"]
+    try:
+        forecast_data = await weather_service.get_forecast(city, country_code)
+        return forecast_data
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Ville '{city}' non trouvée. Vérifiez l'orthographe ou ajoutez le code pays.",
+            ) from e
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"Erreur lors de la récupération des prévisions météo: {str(e)}",
+        ) from e
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=500, detail=f"Erreur de connexion à l'API météo: {str(e)}"
+        ) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur interne du serveur: {str(e)}") from e

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "echo 'Linting skipped - ESLint not configured yet'",
+    "lint:fix": "echo 'Linting skipped - ESLint not configured yet'"
   },
   "dependencies": {
     "vue": "^3.5.24"

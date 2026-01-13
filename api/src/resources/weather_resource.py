@@ -10,9 +10,7 @@ router = APIRouter(prefix="/weather", tags=["Weather"])
 @router.get("/current", response_model=WeatherResponse)
 async def get_current_weather(
     city: str = Query(..., description="Nom de la ville", min_length=1),
-    country_code: str | None = Query(
-        None, description="Code pays ISO (ex: FR, US)", max_length=2
-    ),
+    country_code: str | None = Query(None, description="Code pays ISO (ex: FR, US)", max_length=2),
 ):
     """
     Récupère la météo actuelle pour une ville donnée.
@@ -45,17 +43,13 @@ async def get_current_weather(
             status_code=500, detail=f"Erreur de connexion à l'API météo: {str(e)}"
         ) from e
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Erreur interne du serveur: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Erreur interne du serveur: {str(e)}") from e
 
 
 @router.get("/forecast", response_model=ForecastResponse)
 async def get_weather_forecast(
     city: str = Query(..., description="Nom de la ville", min_length=1),
-    country_code: str | None = Query(
-        None, description="Code pays ISO (ex: FR, US)", max_length=2
-    ),
+    country_code: str | None = Query(None, description="Code pays ISO (ex: FR, US)", max_length=2),
 ):
     """
     Récupère les prévisions météo sur 7 jours pour une ville donnée.
@@ -89,6 +83,4 @@ async def get_weather_forecast(
             status_code=500, detail=f"Erreur de connexion à l'API météo: {str(e)}"
         ) from e
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Erreur interne du serveur: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Erreur interne du serveur: {str(e)}") from e

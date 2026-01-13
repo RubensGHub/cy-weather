@@ -1,33 +1,34 @@
-import httpx
 from fastapi import APIRouter, HTTPException, Query
-from prometheus_client import Counter
-
-from src.models.Weather import ForecastResponse, WeatherResponse
+from typing import Optional
+from src.models.Weather import WeatherRequest, WeatherResponse, ForecastResponse
 from src.services.weather_service import weather_service
+import httpx
 
-pau_search_counter = Counter(
-    "pau_weather_searches_total", "Total number of weather searches for Pau"
-)
 
-city_search_counter = Counter(
-    "city_weather_searches_total", "Total number of weather searches by city", ["city"]
-)
-
-router = APIRouter(prefix="/api/weather", tags=["Weather"])
+# Router pour les endpoints météo
+router = APIRouter(prefix="/weather", tags=["Weather"])
 
 
 @router.get("/current", response_model=WeatherResponse)
 async def get_current_weather(
-    city: str = Query(..., description="Nom de la ville"),
-    country_code: str | None = Query(None, description="Code pays (ex: FR, US)"),
+    city: str = Query(..., description="Nom de la ville", min_length=1),
+    country_code: Optional[str] = Query(
+        None, description="Code pays ISO (ex: FR, US)", max_length=2
+    ),
 ):
-    """Récupère la météo actuelle pour une ville donnée"""
+    """
+    Récupère la météo actuelle pour une ville donnée.
 
-    if city.lower() == "pau":
-        pau_search_counter.inc()
+    Args:
+        city: Nom de la ville
+        country_code: Code pays ISO optionnel (ex: FR, US)
 
-    city_search_counter.labels(city=city.lower()).inc()
+    Returns:
+        WeatherResponse: Données météo actuelles avec température, humidité, etc.
 
+    Raises:
+        HTTPException: 404 si la ville n'est pas trouvée, 500 en cas d'erreur serveur
+    """
     try:
         weather_data = await weather_service.get_current_weather(city, country_code)
         return weather_data
@@ -36,31 +37,42 @@ async def get_current_weather(
             raise HTTPException(
                 status_code=404,
                 detail=f"Ville '{city}' non trouvée. Vérifiez l'orthographe ou ajoutez le code pays.",
-            ) from e
+            )
         raise HTTPException(
             status_code=e.response.status_code,
             detail=f"Erreur lors de la récupération des données météo: {str(e)}",
-        ) from e
+        )
     except httpx.HTTPError as e:
         raise HTTPException(
             status_code=500, detail=f"Erreur de connexion à l'API météo: {str(e)}"
-        ) from e
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur interne du serveur: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Erreur interne du serveur: {str(e)}"
+        )
 
 
 @router.get("/forecast", response_model=ForecastResponse)
-async def get_forecast(
-    city: str = Query(..., description="Nom de la ville"),
-    country_code: str | None = Query(None, description="Code pays (ex: FR, US)"),
+async def get_weather_forecast(
+    city: str = Query(..., description="Nom de la ville", min_length=1),
+    country_code: Optional[str] = Query(
+        None, description="Code pays ISO (ex: FR, US)", max_length=2
+    ),
 ):
-    """Récupère les prévisions météo pour une ville donnée"""
+    """
+    Récupère les prévisions météo sur 7 jours pour une ville donnée.
 
-    if city.lower() == "pau":
-        pau_search_counter.inc()
+    Args:
+        city: Nom de la ville
+        country_code: Code pays ISO optionnel (ex: FR, US)
 
-    city_search_counter.labels(city=city.lower()).inc()
+    Returns:
+        ForecastResponse: Prévisions météo pour les 7 prochains jours avec températures min/max,
+                         humidité, vitesse du vent, etc.
 
+    Raises:
+        HTTPException: 404 si la ville n'est pas trouvée, 500 en cas d'erreur serveur
+    """
     try:
         forecast_data = await weather_service.get_forecast(city, country_code)
         return forecast_data
@@ -69,14 +81,16 @@ async def get_forecast(
             raise HTTPException(
                 status_code=404,
                 detail=f"Ville '{city}' non trouvée. Vérifiez l'orthographe ou ajoutez le code pays.",
-            ) from e
+            )
         raise HTTPException(
             status_code=e.response.status_code,
             detail=f"Erreur lors de la récupération des prévisions météo: {str(e)}",
-        ) from e
+        )
     except httpx.HTTPError as e:
         raise HTTPException(
             status_code=500, detail=f"Erreur de connexion à l'API météo: {str(e)}"
-        ) from e
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur interne du serveur: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Erreur interne du serveur: {str(e)}"
+        )

@@ -1,9 +1,9 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime
-from src.services.weather_service import WeatherService, weather_service
-from src.models.Weather import WeatherResponse, ForecastResponse
 import httpx
+import pytest
+from unittest.mock import MagicMock, patch
+
+from src.models.Weather import ForecastResponse, WeatherResponse
+from src.services.weather_service import WeatherService, weather_service
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def mock_geocoding_response():
                 "latitude": 43.2964,
                 "longitude": -0.3701,
                 "name": "Pau",
-                "country_code": "FR"
+                "country_code": "FR",
             }
         ]
     }
@@ -38,7 +38,7 @@ def mock_current_weather_response():
             "relative_humidity_2m": 75,
             "pressure_msl": 1013.2,
             "wind_speed_10m": 12.5,
-            "weather_code": 2
+            "weather_code": 2,
         }
     }
 
@@ -55,7 +55,7 @@ def mock_forecast_response():
             "apparent_temperature_max": [17.0, 15.5, 13.0],
             "apparent_temperature_min": [7.0, 9.0, 8.5],
             "precipitation_probability_max": [10, 80, 95],
-            "wind_speed_10m_max": [15.0, 20.5, 25.0]
+            "wind_speed_10m_max": [15.0, 20.5, 25.0],
         }
     }
 
@@ -101,7 +101,7 @@ class TestWMOCodeMapping:
         assert service._wmo_to_icon(0) == "01d"
         assert service._wmo_to_icon(61) == "10d"
         assert service._wmo_to_icon(95) == "11d"
-        assert service._wmo_to_icon(999) == "01d"  # Default
+        assert service._wmo_to_icon(999) == "01d"
 
 
 class TestGetCoordinates:
@@ -110,7 +110,7 @@ class TestGetCoordinates:
     @pytest.mark.asyncio
     async def test_get_coordinates_success(self, service, mock_geocoding_response):
         """Test récupération des coordonnées avec succès"""
-        with patch('httpx.AsyncClient.get') as mock_get:
+        with patch("httpx.AsyncClient.get") as mock_get:
             mock_response = MagicMock()
             mock_response.json.return_value = mock_geocoding_response
             mock_response.raise_for_status = MagicMock()
@@ -126,7 +126,7 @@ class TestGetCoordinates:
     @pytest.mark.asyncio
     async def test_get_coordinates_city_not_found(self, service):
         """Test quand la ville n'est pas trouvée"""
-        with patch('httpx.AsyncClient.get') as mock_get:
+        with patch("httpx.AsyncClient.get") as mock_get:
             mock_response = MagicMock()
             mock_response.json.return_value = {"results": []}
             mock_response.raise_for_status = MagicMock()
@@ -138,7 +138,7 @@ class TestGetCoordinates:
     @pytest.mark.asyncio
     async def test_get_coordinates_api_error(self, service):
         """Test gestion erreur API"""
-        with patch('httpx.AsyncClient.get') as mock_get:
+        with patch("httpx.AsyncClient.get") as mock_get:
             mock_get.side_effect = httpx.HTTPError("API Error")
 
             with pytest.raises(httpx.HTTPError):
@@ -153,13 +153,11 @@ class TestGetCurrentWeather:
         self, service, mock_geocoding_response, mock_current_weather_response
     ):
         """Test récupération météo actuelle avec succès"""
-        with patch('httpx.AsyncClient.get') as mock_get:
-            # Premier appel : géocodage
+        with patch("httpx.AsyncClient.get") as mock_get:
             mock_geo_response = MagicMock()
             mock_geo_response.json.return_value = mock_geocoding_response
             mock_geo_response.raise_for_status = MagicMock()
 
-            # Deuxième appel : météo
             mock_weather_response = MagicMock()
             mock_weather_response.json.return_value = mock_current_weather_response
             mock_weather_response.raise_for_status = MagicMock()
@@ -180,7 +178,7 @@ class TestGetCurrentWeather:
         self, service, mock_geocoding_response, mock_current_weather_response
     ):
         """Test récupération météo avec code pays"""
-        with patch('httpx.AsyncClient.get') as mock_get:
+        with patch("httpx.AsyncClient.get") as mock_get:
             mock_geo_response = MagicMock()
             mock_geo_response.json.return_value = mock_geocoding_response
             mock_geo_response.raise_for_status = MagicMock()
@@ -205,7 +203,7 @@ class TestGetForecast:
         self, service, mock_geocoding_response, mock_forecast_response
     ):
         """Test récupération prévisions avec succès"""
-        with patch('httpx.AsyncClient.get') as mock_get:
+        with patch("httpx.AsyncClient.get") as mock_get:
             mock_geo_response = MagicMock()
             mock_geo_response.json.return_value = mock_geocoding_response
             mock_geo_response.raise_for_status = MagicMock()
@@ -232,7 +230,7 @@ class TestGetForecast:
         self, service, mock_geocoding_response, mock_forecast_response
     ):
         """Test calcul des températures jour/nuit"""
-        with patch('httpx.AsyncClient.get') as mock_get:
+        with patch("httpx.AsyncClient.get") as mock_get:
             mock_geo_response = MagicMock()
             mock_geo_response.json.return_value = mock_geocoding_response
             mock_geo_response.raise_for_status = MagicMock()
@@ -245,7 +243,9 @@ class TestGetForecast:
 
             result = await service.get_forecast("Pau")
 
-            # Vérifier que temp_day > temp_night
             assert result.forecast[0].temp_day > result.forecast[0].temp_night
-            # Vérifier que les températures sont dans un intervalle raisonnable
-            assert result.forecast[0].temp_min < result.forecast[0].temp_day < result.forecast[0].temp_max
+            assert (
+                result.forecast[0].temp_min
+                < result.forecast[0].temp_day
+                < result.forecast[0].temp_max
+            )

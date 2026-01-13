@@ -1,8 +1,8 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.resources.weather_resource import router as weather_router
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from src.resources.weather_resource import router as weather_router
 
 tags_metadata = [
     {
@@ -34,7 +34,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 
 router = APIRouter(

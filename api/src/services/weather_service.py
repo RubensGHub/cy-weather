@@ -1,11 +1,12 @@
-import httpx
-from typing import Optional
 from datetime import datetime
+
+import httpx
+
 from src.models.Weather import (
-    WeatherResponse,
-    ForecastResponse,
     CurrentWeatherData,
     DailyForecastData,
+    ForecastResponse,
+    WeatherResponse,
 )
 
 
@@ -46,7 +47,7 @@ class WeatherService:
         }
 
     async def _get_coordinates(
-        self, city: str, country_code: Optional[str] = None
+        self, city: str, country_code: str | None = None
     ) -> tuple[float, float, str, str]:
         """
         Récupère les coordonnées géographiques d'une ville via l'API de géocodage Open-Meteo
@@ -107,7 +108,7 @@ class WeatherService:
         return icon_map.get(wmo_code, "01d")
 
     async def get_current_weather(
-        self, city: str, country_code: Optional[str] = None
+        self, city: str, country_code: str | None = None
     ) -> WeatherResponse:
         """
         Récupère la météo actuelle pour une ville donnée
@@ -166,9 +167,7 @@ class WeatherService:
             weather=weather_data,
         )
 
-    async def get_forecast(
-        self, city: str, country_code: Optional[str] = None
-    ) -> ForecastResponse:
+    async def get_forecast(self, city: str, country_code: str | None = None) -> ForecastResponse:
         """
         Récupère les prévisions météo sur 7 jours pour une ville donnée
 

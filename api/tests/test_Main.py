@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+
 from main import app
 
 client = TestClient(app)
@@ -10,7 +11,7 @@ class TestHealthEndpoint:
     def test_health_check_success(self):
         """Test que l'endpoint health retourne un statut OK"""
         response = client.get("/api/health")
-        
+
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
@@ -30,7 +31,7 @@ class TestPrometheusMetrics:
     def test_metrics_endpoint_exists(self):
         """Test que l'endpoint /metrics existe"""
         response = client.get("/metrics")
-        
+
         assert response.status_code == 200
         assert "text/plain" in response.headers["content-type"]
 
@@ -41,7 +42,7 @@ class TestOpenAPISchema:
     def test_openapi_schema_accessible(self):
         """Test que le schéma OpenAPI est accessible"""
         response = client.get("/api/openapi.json")
-        
+
         assert response.status_code == 200
         assert response.json()["info"]["title"] == "CY Weather API"
 
@@ -52,5 +53,5 @@ class TestErrorHandling:
     def test_404_on_invalid_endpoint(self):
         """Test qu'un endpoint invalide retourne 404"""
         response = client.get("/api/invalid-endpoint")
-        
+
         assert response.status_code == 404

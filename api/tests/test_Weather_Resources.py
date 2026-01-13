@@ -1,8 +1,15 @@
-from fastapi.testclient import TestClient
-from unittest.mock import patch, AsyncMock
-from main import app
-from src.models.Weather import WeatherResponse, ForecastResponse, CurrentWeatherData, DailyForecastData
 from datetime import datetime
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
+
+from main import app
+from src.models.Weather import (
+    CurrentWeatherData,
+    DailyForecastData,
+    ForecastResponse,
+    WeatherResponse,
+)
 
 client = TestClient(app)
 
@@ -10,7 +17,7 @@ client = TestClient(app)
 class TestCurrentWeatherEndpoint:
     """Tests pour l'endpoint /api/weather/current"""
 
-    @patch('src.resources.weather_resource.weather_service.get_current_weather')
+    @patch("src.resources.weather_resource.weather_service.get_current_weather")
     def test_get_current_weather_success(self, mock_get_weather):
         """Test récupération météo actuelle avec succès"""
         mock_get_weather.return_value = WeatherResponse(
@@ -24,8 +31,8 @@ class TestCurrentWeatherEndpoint:
                 pressure=1013.2,
                 wind_speed=12.5,
                 description="Partiellement nuageux",
-                icon="02d"
-            )
+                icon="02d",
+            ),
         )
 
         response = client.get("/api/weather/current?city=Paris")
@@ -40,7 +47,7 @@ class TestCurrentWeatherEndpoint:
 class TestForecastEndpoint:
     """Tests pour l'endpoint /api/weather/forecast"""
 
-    @patch('src.resources.weather_resource.weather_service.get_forecast')
+    @patch("src.resources.weather_resource.weather_service.get_forecast")
     def test_get_forecast_success(self, mock_get_forecast):
         """Test récupération prévisions avec succès"""
         mock_get_forecast.return_value = ForecastResponse(
@@ -59,9 +66,9 @@ class TestForecastEndpoint:
                     precipitation_probability=20,
                     wind_speed=10.5,
                     description="Ciel dégagé",
-                    icon="01d"
+                    icon="01d",
                 )
-            ]
+            ],
         )
 
         response = client.get("/api/weather/forecast?city=Lyon")
@@ -72,7 +79,7 @@ class TestForecastEndpoint:
         assert len(data["forecast"]) == 1
         assert data["forecast"][0]["temp_max"] == 18.0
 
-    @patch('src.resources.weather_resource.weather_service.get_forecast')
+    @patch("src.resources.weather_resource.weather_service.get_forecast")
     def test_get_forecast_multiple_days(self, mock_get_forecast):
         """Test prévisions sur plusieurs jours"""
         mock_get_forecast.return_value = ForecastResponse(
@@ -80,7 +87,7 @@ class TestForecastEndpoint:
             country="FR",
             forecast=[
                 DailyForecastData(
-                    date=f"2026-01-{13+i}",
+                    date=f"2026-01-{13 + i}",
                     temp_max=18.0 + i,
                     temp_min=8.0 + i,
                     temp_day=15.0,
@@ -91,10 +98,10 @@ class TestForecastEndpoint:
                     precipitation_probability=20,
                     wind_speed=10.5,
                     description="Ciel dégagé",
-                    icon="01d"
+                    icon="01d",
                 )
                 for i in range(7)
-            ]
+            ],
         )
 
         response = client.get("/api/weather/forecast?city=Marseille")
@@ -107,7 +114,7 @@ class TestForecastEndpoint:
 class TestPrometheusCounters:
     """Tests pour les compteurs Prometheus"""
 
-    @patch('src.resources.weather_resource.weather_service.get_current_weather')
+    @patch("src.resources.weather_resource.weather_service.get_current_weather")
     def test_pau_counter_increments(self, mock_get_weather):
         """Test que le compteur Pau s'incrémente"""
         from src.resources.weather_resource import pau_search_counter
@@ -123,8 +130,8 @@ class TestPrometheusCounters:
                 pressure=1013.2,
                 wind_speed=12.5,
                 description="Ciel dégagé",
-                icon="01d"
-            )
+                icon="01d",
+            ),
         )
 
         initial_count = pau_search_counter._value._value
@@ -135,16 +142,14 @@ class TestPrometheusCounters:
 class TestErrorHandling:
     """Tests pour la gestion d'erreurs"""
 
-    @patch('src.resources.weather_resource.weather_service.get_current_weather')
+    @patch("src.resources.weather_resource.weather_service.get_current_weather")
     def test_city_not_found_404(self, mock_get_weather):
         """Test erreur 404 quand la ville n'existe pas"""
         import httpx
-        
+
         mock_response = httpx.Response(404, json={})
         mock_get_weather.side_effect = httpx.HTTPStatusError(
-            "Not found",
-            request=httpx.Request("GET", "http://test"),
-            response=mock_response
+            "Not found", request=httpx.Request("GET", "http://test"), response=mock_response
         )
 
         response = client.get("/api/weather/current?city=VilleInexistante")

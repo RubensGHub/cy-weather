@@ -1,0 +1,36 @@
+name: Simple CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies & run tests
+      working-directory: ./api
+      run: |
+        pip install -r requirements.txt pytest pytest-asyncio
+        pytest tests/ -v
+    
+    - name: Build with Docker Compose
+      run: docker-compose build
+    
+    - name: Test Docker services
+      run: |
+        docker-compose up -d
+        sleep 10
+        curl -f http://localhost:8000/api/health
+        docker-compose down

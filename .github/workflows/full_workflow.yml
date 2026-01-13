@@ -5,7 +5,40 @@ on:
     branches: [ main ]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install Ruff
+      run: pip install ruff
+    
+    - name: Lint Python with Ruff
+      working-directory: ./api
+      run: |
+        ruff check .
+        ruff format --check .
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install Node dependencies
+      working-directory: ./web
+      run: npm ci
+    
+    - name: Lint Vue with ESLint
+      working-directory: ./web
+      run: npm run lint
+
   test:
+    needs: lint
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4

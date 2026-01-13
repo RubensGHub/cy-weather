@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Instrumentator().instrument(app).expose(app)
+
 
 router = APIRouter(
     prefix="/api",
@@ -52,3 +52,5 @@ async def health_check():
 
 app.include_router(router)
 app.include_router(weather_router, prefix="/api")
+
+Instrumentator().instrument(app).expose(app)

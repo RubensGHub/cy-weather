@@ -2,12 +2,21 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from src.models.Weather import WeatherRequest, WeatherResponse, ForecastResponse
 from src.services.weather_service import weather_service
+from prometheus_client import Counter
 import httpx
 
+pau_search_counter = Counter(
+    'pau_weather_searches_total',
+    'Total number of weather searches for Pau'
+)
 
-# Router pour les endpoints météo
+city_search_counter = Counter(
+    'city_weather_searches_total',
+    'Total number of weather searches by city',
+    ['city']
+)
+
 router = APIRouter(prefix="/weather", tags=["Weather"])
-
 
 @router.get("/current", response_model=WeatherResponse)
 async def get_current_weather(
@@ -30,6 +39,11 @@ async def get_current_weather(
         HTTPException: 404 si la ville n'est pas trouvée, 500 en cas d'erreur serveur
     """
     try:
+        # Incrémenter les compteurs Prometheus
+        city_search_counter.labels(city=city.lower()).inc()
+        if city.lower() == "pau":
+            pau_search_counter.inc()
+        
         weather_data = await weather_service.get_current_weather(city, country_code)
         return weather_data
     except httpx.HTTPStatusError as e:
@@ -74,6 +88,11 @@ async def get_weather_forecast(
         HTTPException: 404 si la ville n'est pas trouvée, 500 en cas d'erreur serveur
     """
     try:
+        # Incrémenter les compteurs Prometheus
+        city_search_counter.labels(city=city.lower()).inc()
+        if city.lower() == "pau":
+            pau_search_counter.inc()
+        
         forecast_data = await weather_service.get_forecast(city, country_code)
         return forecast_data
     except httpx.HTTPStatusError as e:

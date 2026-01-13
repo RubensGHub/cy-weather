@@ -18,6 +18,7 @@ services:
       start_period: 40s
     networks:
       - cy-weather-network
+      - monitoring
 
   # Service Frontend Web (Vue.js + Nginx)
   web:
